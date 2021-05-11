@@ -1,0 +1,12 @@
+{
+  "name": "study-withme-api",
+  "version": "1.0.0",
+  "description": "API REST for study-withme",
+  "main": "index.js",
+  "repository": "https://github.com/Naitomea/study-withme-api.git",
+  "author": "Naitomea",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
