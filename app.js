@@ -10,35 +10,53 @@
  * 7 => Sign Up
  */
 
-const MessageCodes = {
+const MessageCode = {
     ADMIN: 0,
     MESSAGE: 1,
-    ACTIONS: 2,
+    ACTION: 2,
     USERS: 3,
     LOGIN: 5,
     LOGOUT: 6,
     SIGNUP: 7,
 }
 
-const ActionTypes = {
+const ActionType = {
     START: 0,
     BREAK: 1,
     STOP: 2
 }
 
-const UserStates = {
+const UserState = {
     REST: 0,
     WORK: 1,
     BREAK: 2
 }
 
+const LogType = {
+    ADMIN: "ADMIN",
+
+    INFO: "INFO",
+    WARNING: "WARN",
+    ERROR: "ERR",
+
+    SEND: "SEND",
+    SEND_ALL: "SEND",
+    SEND_TO: "SEND_TO",
+    RECV: "RECV",
+    RECEIVE: "RECV",
+
+    UKN: "UKN",
+    UNKNOWN: "UKN"
+}
+
+// Websocket core
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ port: 31492 });
 
 wss.on('connection', (ws, req) => {
     ws.ip = req.socket.remoteAddress;
-    console.log("New client connected:", ws.ip)
+    log(`New client connected: ${ws.ip}`);
 
     // Still alive
     ws.isAlive = true;
@@ -46,53 +64,83 @@ wss.on('connection', (ws, req) => {
 
     // User vars
     ws.pseudo = null;
-    ws.state = UserStates.REST;
+    ws.state = UserState.REST;
 
     // Message
     ws.on('message', (data) => {
         data = JSON.parse(data)
-        // console.log("Data received:", data)
+        log(data, LogType.RECV, ws);
 
         messageHandler(data, ws);
     });
 
     // Disconnected
     ws.on('close', (code, reason) => {
-        console.log(`Client disconnected ${ws.ip}\n[${code}] ${reason}`)
+        log(`Client disconnected: ${wsToUserLogName(ws)} - [${code}] ${reason}`);
 
         if (ws.pseudo !== null)
-            sendToAll(MessageCodes.LOGOUT, ws.pseudo, ws);
+            sendAll(MessageCode.LOGOUT, ws.pseudo, ws);
     })
 });
 
 // Handlers
 function messageHandler(data, ws) {
     switch (data.code) {
-        case MessageCodes.ADMIN:
+        case MessageCode.ADMIN:
             break;
 
-        case MessageCodes.MESSAGE:
+        case MessageCode.MESSAGE:
             break;
 
-        case MessageCodes.ACTIONS:
+        case MessageCode.ACTION:
             actionHandler(data, ws);
             break;
 
-        case MessageCodes.LOGIN:
+        case MessageCode.LOGIN:
             if (pseudoAlreadyConnected(data.data, ws)) {
-                sendTo(MessageCodes.LOGIN, false, ws);
+                sendTo(MessageCode.LOGIN, false, ws);
             } else {
                 ws.pseudo = data.data;
 
-                sendTo(MessageCodes.LOGIN, true, ws);
-                sendToAll(MessageCodes.USERS, getUserList(), ws);
+                sendTo(MessageCode.LOGIN, true, ws);
+                sendTo(MessageCode.USERS, getUserList(), ws);
+
+                sendAll(MessageCode.LOGIN, ws.pseudo, ws);
+                /////////////////////////
+                setTimeout(() => {
+                    sendAll(MessageCode.USERS, [
+                        { pseudo: "Albert", state: UserState.REST },
+                        { pseudo: "TrouDuc", state: UserState.WORK },
+                        { pseudo: "Jean-Michel", state: UserState.BREAK },
+                    ])
+                }, 5000);
+
+                setTimeout(() => {
+                    sendAll(MessageCode.LOGIN, "Alfred")
+                }, 10000)
+
+                setTimeout(() => {
+                    sendAll(MessageCode.LOGOUT, "TrouDuc")
+                }, 15000)
+
+                setTimeout(() => {
+                    sendAll(MessageCode.ACTION, createAction(ActionType.START, "Albert"))
+                }, 20000)
+
+                setTimeout(() => {
+                    sendAll(MessageCode.ACTION, createAction(ActionType.STOP, "Jean-Michel"))
+                }, 25000)
+
+                setTimeout(() => {
+                    sendAll(MessageCode.ACTION, createAction(ActionType.BREAK, "Albert"))
+                }, 30000)
             }
             break;
 
-        case MessageCodes.LOGOUT:
+        case MessageCode.LOGOUT:
             break;
 
-        case MessageCodes.SIGNUP:
+        case MessageCode.SIGNUP:
             break;
 
         default:
@@ -102,16 +150,16 @@ function messageHandler(data, ws) {
 
 function actionHandler(data, ws) {
     switch (data.action) {
-        case ActionTypes.START:
-            updateUserState(UserStates.WORK, ws);
+        case ActionType.START:
+            updateUserState(UserState.WORK, ws);
             break;
 
-        case ActionTypes.BREAK:
-            updateUserState(UserStates.BREAK, ws);
+        case ActionType.BREAK:
+            updateUserState(UserState.BREAK, ws);
             break;
 
-        case ActionTypes.STOP:
-            updateUserState(UserStates.REST, ws);
+        case ActionType.STOP:
+            updateUserState(UserState.REST, ws);
             break;
 
         default:
@@ -126,29 +174,42 @@ function updateUserState(newState, ws) {
     ws.state = newState;
     // Then, save to history...
 
-    sendToAll(MessageCodes.ACTIONS, {
+    sendAll(MessageCode.ACTION, {
         pseudo: ws.pseudo,
         state: newState
     })
 }
 
 // Utils functions
-function sendTo(code, data, receiver) {
-    if (receiver.readyState === WebSocket.OPEN) {
-        receiver.send(JSON.stringify({
-            code,
-            data
-        }))
+function createAction(action, data) {
+    return {
+        action,
+        data
     }
 }
 
-function sendToAll(code, data, sender = null) {
+function sendTo(code, data, receiver) {
+    if (receiver.readyState === WebSocket.OPEN) {
+        const d = {
+            code,
+            data
+        };
+
+        log(d, LogType.SEND_TO, receiver)
+        receiver.send(JSON.stringify(d))
+    }
+}
+
+function sendAll(code, data, sender = null) {
+    const d = {
+        code,
+        data
+    };
+
+    log(d, LogType.SEND, sender);
     wss.clients.forEach((ws) => {
         if (ws !== sender && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                code,
-                data
-            }));
+            ws.send(JSON.stringify(d));
         }
     });
 }
@@ -160,11 +221,17 @@ function pseudoAlreadyConnected(pseudo, ws) {
         if (client !== ws && client.pseudo !== null
             && client.pseudo.toLowerCase() == pseudo.toLowerCase()) {
             found = true;
-            break;
         }
     })
 
     return found;
+}
+
+function getUserData(ws) {
+    return {
+        pseudo: ws.pseudo,
+        state: ws.state
+    }
 }
 
 function getUserList() {
@@ -172,10 +239,7 @@ function getUserList() {
 
     wss.clients.forEach(client => {
         if (client.pseudo !== null) {
-            userList.push({
-                pseudo: client.pseudo,
-                state: client.state
-            });
+            userList.push(getUserData(client));
         }
     })
 
@@ -183,16 +247,43 @@ function getUserList() {
 }
 
 // Check clients
-const interval = setInterval(() => {
-    wss.clients.forEach((ws) => {
-        if (ws.isAlive === false) return ws.terminate();
+// const interval = setInterval(() => {
+//     wss.clients.forEach((ws) => {
+//         if (ws.isAlive === false) return ws.terminate();
 
-        ws.isAlive = false;
-        ws.ping();
-    });
-}, 30000);
+//         ws.isAlive = false;
+//         ws.ping();
+//     });
+// }, 20000);
 
 // Close server
 wss.on('close', function close() {
     clearInterval(interval);
 });
+
+// Utils functions
+function logTime() {
+    return `[${(new Date()).toLocaleTimeString("FR-fr")}]`;
+}
+
+function wsToUserLogName(ws) {
+    return `${ws.ip}${ws.pseudo !== null ? ` (${ws.pseudo})` : ''}`;
+}
+
+function log(data, type = LogType.INFO, ws = null, time = true) {
+    let text = "";
+
+    // Time
+    if (time)
+        text += `${logTime()}`;
+
+    // Type
+    text += `[${type}]`;
+
+    // Pseudo
+    if (ws !== null)
+        text += ` ${wsToUserLogName(ws)}:`;
+
+    // Print log
+    console.log(`${text}`, data);
+}
