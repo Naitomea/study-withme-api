@@ -106,34 +106,8 @@ function messageHandler(data, ws) {
                 sendTo(MessageCode.USERS, getUserList(), ws);
 
                 sendAll(MessageCode.LOGIN, ws.pseudo, ws);
-                /////////////////////////
-                setTimeout(() => {
-                    sendAll(MessageCode.USERS, [
-                        { pseudo: "Albert", state: UserState.REST },
-                        { pseudo: "TrouDuc", state: UserState.WORK },
-                        { pseudo: "Jean-Michel", state: UserState.BREAK },
-                    ])
-                }, 5000);
 
-                setTimeout(() => {
-                    sendAll(MessageCode.LOGIN, "Alfred")
-                }, 10000)
-
-                setTimeout(() => {
-                    sendAll(MessageCode.LOGOUT, "TrouDuc")
-                }, 15000)
-
-                setTimeout(() => {
-                    sendAll(MessageCode.ACTION, createAction(ActionType.START, "Albert"))
-                }, 20000)
-
-                setTimeout(() => {
-                    sendAll(MessageCode.ACTION, createAction(ActionType.STOP, "Jean-Michel"))
-                }, 25000)
-
-                setTimeout(() => {
-                    sendAll(MessageCode.ACTION, createAction(ActionType.BREAK, "Albert"))
-                }, 30000)
+                // test()
             }
             break;
 
@@ -149,7 +123,7 @@ function messageHandler(data, ws) {
 }
 
 function actionHandler(data, ws) {
-    switch (data.action) {
+    switch (data.data) {
         case ActionType.START:
             updateUserState(UserState.WORK, ws);
             break;
@@ -165,6 +139,8 @@ function actionHandler(data, ws) {
         default:
             break;
     }
+
+    sendAll(MessageCode.ACTION, createAction(data.data, ws.pseudo))
 }
 
 function updateUserState(newState, ws) {
@@ -173,18 +149,13 @@ function updateUserState(newState, ws) {
 
     ws.state = newState;
     // Then, save to history...
-
-    sendAll(MessageCode.ACTION, {
-        pseudo: ws.pseudo,
-        state: newState
-    })
 }
 
 // Utils functions
-function createAction(action, data) {
+function createAction(action, pseudo) {
     return {
         action,
-        data
+        pseudo
     }
 }
 
@@ -286,4 +257,35 @@ function log(data, type = LogType.INFO, ws = null, time = true) {
 
     // Print log
     console.log(`${text}`, data);
+}
+
+
+function test() {
+    setTimeout(() => {
+        sendAll(MessageCode.USERS, [
+            { pseudo: "Albert", state: UserState.REST },
+            { pseudo: "TrouDuc", state: UserState.WORK },
+            { pseudo: "Jean-Michel", state: UserState.BREAK },
+        ])
+    }, 5000);
+
+    setTimeout(() => {
+        sendAll(MessageCode.LOGIN, "Alfred")
+    }, 10000)
+
+    setTimeout(() => {
+        sendAll(MessageCode.LOGOUT, "TrouDuc")
+    }, 15000)
+
+    setTimeout(() => {
+        sendAll(MessageCode.ACTION, createAction(ActionType.START, "Albert"))
+    }, 20000)
+
+    setTimeout(() => {
+        sendAll(MessageCode.ACTION, createAction(ActionType.STOP, "Jean-Michel"))
+    }, 25000)
+
+    setTimeout(() => {
+        sendAll(MessageCode.ACTION, createAction(ActionType.BREAK, "Albert"))
+    }, 30000)
 }
