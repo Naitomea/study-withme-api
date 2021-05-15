@@ -52,7 +52,8 @@ const LogType = {
 // Websocket core
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 31492 });
+const port = process.env.PORT || 31492;
+const wss = new WebSocket.Server({ port });
 
 wss.on('connection', (ws, req) => {
     ws.ip = req.socket.remoteAddress;
