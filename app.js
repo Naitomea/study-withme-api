@@ -53,7 +53,10 @@ const LogType = {
 const WebSocket = require('ws');
 
 const port = process.env.PORT || 31492;
-const wss = new WebSocket.Server({ port });
+const wss = new WebSocket.Server({ port }, () => {
+    log(`Server start on port ${port} at https://study-withme.herokuapp.com/`,
+        LogType.INFO)
+});
 
 wss.on('connection', (ws, req) => {
     ws.ip = req.socket.remoteAddress;
