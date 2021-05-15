@@ -3,7 +3,7 @@
  * 0 => Admin
  * 1 => Message
  * 2 => Actions
- * 3 => 
+ * 3 => Users
  * 4 => 
  * 5 => Login/Connection
  * 6 => Logout/Disconnection
