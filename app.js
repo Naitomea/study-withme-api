@@ -53,8 +53,9 @@ const LogType = {
 const WebSocket = require('ws');
 
 const port = process.env.PORT || 31492;
+const host = port == 31492 ? "localhost" : "https://study-withme.herokuapp.com/";
 const wss = new WebSocket.Server({ port }, () => {
-    log(`Server start on port ${port} at https://study-withme.herokuapp.com/`,
+    log(`Server started on port ${port} at ${host}`,
         LogType.INFO)
 });
 
@@ -98,6 +99,10 @@ function messageHandler(data, ws) {
 
         case MessageCode.ACTION:
             actionHandler(data, ws);
+            break;
+
+        case MessageCode.USERS:
+            sendTo(MessageCode.USERS, getUserList(), ws);
             break;
 
         case MessageCode.LOGIN:
@@ -191,6 +196,8 @@ function sendAll(code, data, sender = null) {
 
 function pseudoAlreadyConnected(pseudo, ws) {
     let found = false;
+
+    // if (pseudo == "Naitomea") return true;
 
     wss.clients.forEach(client => {
         if (client !== ws && client.pseudo !== null
